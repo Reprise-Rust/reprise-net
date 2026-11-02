@@ -17,6 +17,10 @@
 //! There is no notion of "client" or "server" here: any peer can dial any other
 //! peer, and any peer can listen.
 
+// Lets `#[derive(Layout)]`-generated code refer to `::reprise_net::...` even
+// from within this crate.
+extern crate self as reprise_net;
+
 pub mod endpoint;
 pub mod error;
 pub mod file;
@@ -30,8 +34,11 @@ pub mod version;
 
 pub use endpoint::Peer;
 pub use error::{Error, Result};
+pub use framing::StreamKind;
 pub use packet::{Message, Packet, PacketError};
-pub use type_hash::TypeHash;
+pub use reprise_net_derive::Layout;
+pub use rpc::{Transaction, send_transaction};
+pub use type_hash::{Layout, TypeHash};
 
 /// The bincode configuration used for every message on the wire.
 pub fn config() -> bincode::config::Configuration {

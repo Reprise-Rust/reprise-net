@@ -1,22 +1,27 @@
 //! The upper packet envelope wrapping a bincode-encoded message.
 //!
-//! Every frame on the wire is a [`Packet`]: a [`TypeHash`] followed by the
-//! bincode-encoded body. The hash lets the receiver reject a payload whose
-//! layout differs from the one it was compiled against *before* attempting to
-//! decode it.
+//! A [`Packet`] is a [`TypeHash`] followed by the bincode-encoded body. The hash
+//! lets the receiver reject a payload whose layout differs from the one it was
+//! compiled against *before* attempting to decode it. The [`crate::framing`]
+//! layer adds the stream-kind byte and length prefix around the serialized
+//! packet.
 
 use bincode::{Decode, Encode};
 use thiserror::Error;
 
-use crate::framing::{prepend_length, strip_length};
 use crate::type_hash::TypeHash;
+use crate::Layout;
 
 /// A wire message that can be encoded with bincode and identified by a stable
 /// type fingerprint.
-pub trait Message: Encode + Decode<()> {
-    /// The fingerprint of this message's bincode layout.
-    const TYPE_HASH: TypeHash;
-}
+///
+/// The fingerprint comes from the [`Layout`] impl, which is normally generated
+/// with `#[derive(Layout)]`.
+pub trait Message: Encode + Decode<()> + Layout {}
+
+/// A transaction response is a `Result`; make it a first-class [`Message`] so
+/// `Transaction::Response` can be `Result<T, ApiError>`.
+impl<T: Message, E: Message> Message for Result<T, E> {}
 
 /// A framed message: the sender's type fingerprint plus the encoded body.
 #[derive(Debug, Clone, Encode, Decode)]
@@ -77,32 +82,18 @@ impl Packet {
         Ok(msg)
     }
 
-    /// Encodes `msg` and wraps it into a length-prefixed frame ready for a QUIC
-    /// stream: a big-endian `u32` length followed by the packet bytes.
-    pub fn frame<M: Message>(msg: &M) -> Result<Vec<u8>, PacketError> {
-        let body = Self::encode(msg)?.to_bytes()?;
-        Ok(prepend_length(&body))
-    }
-
-    /// Parses a length-prefixed frame into a packet.
-    pub fn from_frame(frame: &[u8]) -> Result<Self, PacketError> {
-        let body = strip_length(frame).ok_or(PacketError::FrameTooShort)?;
-        Self::from_bytes(body)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[derive(Debug, Clone, Encode, Decode)]
+    #[derive(Debug, Clone, Encode, Decode, Layout)]
     struct Ping {
         value: u64,
     }
 
-    impl Message for Ping {
-        const TYPE_HASH: TypeHash = TypeHash::of("Ping { value: u64 }");
-    }
+    impl Message for Ping {}
 
     #[test]
     fn packet_roundtrip() {
@@ -112,15 +103,6 @@ mod tests {
         let parsed = Packet::from_bytes(&bytes).unwrap();
         let decoded: Ping = parsed.decode().unwrap();
         assert_eq!(decoded.value, 42);
-    }
-
-    #[test]
-    fn frame_roundtrip() {
-        let req = Ping { value: 7 };
-        let frame = Packet::frame(&req).unwrap();
-        let parsed = Packet::from_frame(&frame).unwrap();
-        let decoded: Ping = parsed.decode().unwrap();
-        assert_eq!(decoded.value, 7);
     }
 
     #[test]

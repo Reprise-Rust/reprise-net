@@ -45,6 +45,10 @@ pub enum Error {
     #[error("frame too large: {0} bytes")]
     FrameTooLarge(usize),
 
+    /// A frame carried an unrecognized stream-kind byte.
+    #[error("unknown stream kind: {0}")]
+    UnknownStreamKind(u8),
+
     /// A certificate could not be generated or parsed.
     #[error("certificate: {0}")]
     Certificate(String),

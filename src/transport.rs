@@ -10,10 +10,10 @@ use std::time::Duration;
 use quinn::TransportConfig;
 
 /// How long a connection may sit idle before QUIC closes it.
-pub const MAX_IDLE_TIMEOUT: Duration = Duration::from_secs(10);
+pub const MAX_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// How often keep-alive packets are sent while a connection is idle.
-pub const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(5);
+pub const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Builds the shared QUIC transport config.
 pub fn transport_config() -> TransportConfig {

@@ -19,6 +19,9 @@ ed25519-dalek = { version = "3.0.0", features = ["pkcs8", "alloc"] }
 # Serialization
 bincode = "2.0.1"
 
+# Layout fingerprinting
+reprise-net-derive = { path = "../reprise-net-derive" }
+
 # Async runtime
 tokio = { version = "1.54.1", features = ["net", "time", "sync", "io-util", "rt", "macros"] }
 
