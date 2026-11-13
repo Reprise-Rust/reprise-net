@@ -17,6 +17,7 @@ use crate::transport::shared_transport_config;
 
 /// A peer identity: an ed25519 signing key plus the derived self-signed
 /// certificate used during the QUIC handshake.
+/// Peers does not have roles but in QUIC one must listen, other must connect
 pub struct Peer {
     signing_key: SigningKey,
     cert: quinn::rustls::pki_types::CertificateDer<'static>,
