@@ -14,7 +14,7 @@ use quinn::{Connection, RecvStream};
 
 use crate::error::{Error, Result};
 use crate::framing::{StreamKind, prepend_kind_length};
-use crate::packet::{Message, Packet};
+use crate::packet::{Command, Packet};
 
 /// The maximum size of a single framed message accepted from a peer.
 pub const MAX_FRAME: usize = 16 * 1024 * 1024;
@@ -24,9 +24,9 @@ pub const MAX_FRAME: usize = 16 * 1024 * 1024;
 /// Implementing this for a request type makes the request→response pairing a
 /// compile-time guarantee: [`send_transaction`] returns `Self::Response`, so the
 /// caller cannot mistake which response belongs to which request.
-pub trait Transaction: Message {
+pub trait Transaction: Command {
     /// The exact response type this request produces.
-    type Response: Message;
+    type Response: Command;
 }
 
 /// Sends a single transaction over `conn` and awaits its typed response.
@@ -40,8 +40,11 @@ where
     send.write_all(&frame).await?;
     send.finish()?;
 
-    let resp_frame = read_frame(&mut recv, MAX_FRAME).await?;
-    let packet = Packet::from_bytes(&resp_frame)?;
+    let (kind, resp_body) = read_kind_frame(&mut recv, MAX_FRAME).await?;
+    if kind != StreamKind::Transaction {
+        return Err(Error::UnknownStreamKind(kind as u8));
+    }
+    let packet = Packet::from_bytes(&resp_body)?;
     Ok(packet.decode()?)
 }
 
