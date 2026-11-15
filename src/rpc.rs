@@ -13,7 +13,7 @@
 use quinn::{Connection, RecvStream};
 
 use crate::error::{Error, Result};
-use crate::framing::{StreamKind, prepend_kind_length};
+use crate::framing::{KIND_PREFIX, StreamKind, prepend_kind_length};
 use crate::packet::{Command, Packet};
 
 /// The maximum size of a single framed message accepted from a peer.
@@ -42,7 +42,7 @@ where
 
     let (kind, resp_body) = read_kind_frame(&mut recv, MAX_FRAME).await?;
     if kind != StreamKind::Transaction {
-        return Err(Error::UnknownStreamKind(kind as u8));
+        return Err(Error::UnknownStreamKind(kind.discriminant()));
     }
     let packet = Packet::from_bytes(&resp_body)?;
     Ok(packet.decode()?)
@@ -61,13 +61,15 @@ pub async fn read_frame(recv: &mut RecvStream, max: usize) -> Result<Vec<u8>> {
     Ok(body)
 }
 
-/// Reads a stream-kind byte plus a length-prefixed frame from a receive stream.
+/// Reads a stream-kind discriminant plus a length-prefixed frame from a receive
+/// stream.
 ///
 /// Returns the kind and the decoded packet body (length prefix already stripped).
 pub async fn read_kind_frame(recv: &mut RecvStream, max: usize) -> Result<(StreamKind, Vec<u8>)> {
-    let mut kind_buf = [0u8; 1];
+    let mut kind_buf = [0u8; KIND_PREFIX];
     recv.read_exact(&mut kind_buf).await?;
-    let kind = StreamKind::from_byte(kind_buf[0]).ok_or(Error::UnknownStreamKind(kind_buf[0]))?;
+    let raw = u32::from_be_bytes(kind_buf);
+    let kind = StreamKind::from_discriminant(raw).ok_or(Error::UnknownStreamKind(raw))?;
 
     let mut len_buf = [0u8; 4];
     recv.read_exact(&mut len_buf).await?;
