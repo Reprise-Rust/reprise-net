@@ -1,0 +1,32 @@
+[package]
+name = "reprise-net"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# QUIC transport
+quinn = "0.11.12"
+# ring-only crypto provider: the default `aws-lc-rs` backend drags in aws-lc-sys
+# (a C build), which breaks aarch64 musl cross-compilation. `ring` is pure
+# Rust + asm and is what quic.rs already pins explicitly.
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+
+# Peer identity (self-signed certs whose public key is the ed25519 key)
+rcgen = "0.14.10"
+x509-parser = "0.18.1"
+ed25519-dalek = { version = "3.0.0", features = ["pkcs8", "alloc"] }
+
+# Serialization
+bincode = "2.0.1"
+
+# Layout fingerprinting
+reprise-net-derive = { path = "../reprise-net-derive" }
+
+# Async runtime
+tokio = { version = "1.54.1", features = ["net", "time", "sync", "io-util", "rt", "macros"] }
+
+# Errors
+thiserror = "2.0.21"
+
+# Logging
+tracing = "0.1.44"
